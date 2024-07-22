@@ -7,6 +7,10 @@
 #include "mqtt_connect.h"
 #include "mqtt_connack.h"
 #include "mqtt_publish.h"
+#include "mqtt_puback.h"
+#include "mqtt_pubrec.h"
+#include "mqtt_pubrel.h"
+#include "mqtt_pubcomp.h"
 
 
 void test_mqtt_connect_packet_encode(uint8_t *encoded_buf, int* buf_len) {
@@ -352,6 +356,349 @@ int test_mqtt_publish_packet_decode(uint8_t * buf, int len)
 
 }
 
+int test_mqtt_puback_packet_encode(uint8_t *encoded_buf, int* buf_len) {
+    // Create a test packet with specific values
+    MQTT_PKT_PUBACK *mqtt_pkt_puback = mqtt_pkt_puback_create();
+    mqtt_pkt_puback_init(mqtt_pkt_puback, 1);
+
+    // Encode the packet
+    uint8_t buf[MQTT_PKT_MAX_SIZE] = {0};
+    int puback_len = mqtt_pkt_puback->encode(mqtt_pkt_puback, buf);
+
+    for (int i = 0; i < puback_len; i++)
+    {
+        printf("buf[%d] = 0x%x ", i, buf[i]);
+    }
+    printf("\n");
+
+    uint8_t expected_buf[1024] = {0};
+
+    // Fixed header
+    uint8_t *p = expected_buf;
+
+    // Fixed header
+    int len = 0;
+    int expected_len = 0;
+
+    p[0] = 0x40;
+    p[1] = 0;
+
+    expected_len += 2;
+    p+=2;
+    int rem_len = 0;
+
+    int var_header_len = encode_int(p, 1);
+    rem_len += var_header_len;
+
+    int rem_len_len = encode_rem_len(rem_len, expected_buf+1);
+    expected_len = 1 + rem_len_len + var_header_len;
+
+    for (int i = 0; i < expected_len; i++)
+    {
+        printf("expected_buf[%d] = 0x%x ", i, expected_buf[i]);
+    }
+    printf("\n");
+    printf("puback_len = %d\n", puback_len);
+    printf("expected_len = %d\n", expected_len);
+    // Compare the encoded packet with the expected packet
+    if (puback_len == expected_len && memcmp(buf, expected_buf, puback_len) == 0) {
+        printf("test_mqtt_puback_packet_encode: Passed\n");
+        *buf_len = puback_len;
+        memcpy(encoded_buf, buf, puback_len);
+    } else {
+        printf("test_mqtt_puback_packet_encode: Failed\n");
+    }
+
+    // Free the test packet
+    destroy_puback(mqtt_pkt_puback);
+
+    printf("destroy_puback_encoded\n");
+    return 0;
+}
+
+int test_mqtt_puback_packet_decode(uint8_t * buf, int len)
+{
+    MQTT_PKT_PUBACK* mqtt_pkt_puback_decoded = mqtt_pkt_puback_decode(buf, len);
+    if (mqtt_pkt_puback_decoded == NULL)
+    {
+        printf("test_mqtt_puback_packet_decode: Failed\n");
+        return -1;
+    }
+
+    if (mqtt_pkt_puback_decoded->get_pkt_id(mqtt_pkt_puback_decoded) == 1)
+    {
+        printf("test_mqtt_puback_packet_decode: Passed\n");
+    }
+    else
+    {
+        printf("test_mqtt_puback_packet_decode: Failed\n");
+    }
+
+    destroy_puback(mqtt_pkt_puback_decoded);
+    printf("destroy_puback_decoded\n");
+    return 0;
+
+}
+
+
+int test_mqtt_pubrec_packet_encode(uint8_t *encoded_buf, int* buf_len) {
+    int packet_id = 3;
+    // Create a test packet with specific values
+    MQTT_PKT_PUBREC *mqtt_pkt_pubrec = mqtt_pkt_pubrec_create();
+    mqtt_pkt_pubrec_init(mqtt_pkt_pubrec, packet_id);
+
+    // Encode the packet
+    uint8_t buf[MQTT_PKT_MAX_SIZE] = {0};
+    int pubrec_len = mqtt_pkt_pubrec->encode(mqtt_pkt_pubrec, buf);
+
+    // for (int i = 0; i < pubrec_len; i++)
+    // {
+    //     printf("buf[%d] = 0x%x ", i, buf[i]);
+    // }
+    // printf("\n");
+
+    uint8_t expected_buf[1024] = {0};
+
+    // Fixed header
+    uint8_t *p = expected_buf;
+
+    // Fixed header
+    int len = 0;
+    int expected_len = 0;
+
+    p[0] = 0x50;
+    p[1] = 0;
+
+    expected_len += 2;
+    p+=2;
+    int rem_len = 0;
+
+    int var_header_len = encode_int(p, packet_id);
+    rem_len += var_header_len;
+
+    int rem_len_len = encode_rem_len(rem_len, expected_buf+1);
+    expected_len = 1 + rem_len_len + var_header_len;
+
+    // for (int i = 0; i < expected_len; i++)
+    // {
+    //     printf("expected_buf[%d] = 0x%x ", i, expected_buf[i]);
+    // }
+    // printf("\n");
+    // printf("pubrec_len = %d\n", pubrec_len);
+    // printf("expected_len = %d\n", expected_len);
+
+    // Compare the encoded packet with the expected packet
+    if (pubrec_len == expected_len && memcmp(buf, expected_buf, pubrec_len) == 0) {
+        printf("test_mqtt_pubrec_packet_encode: Passed\n");
+        *buf_len = pubrec_len;
+        memcpy(encoded_buf, buf, pubrec_len);
+    } else {
+        printf("test_mqtt_pubrec_packet_encode: Failed\n");
+    }
+
+    // Free the test packet
+    destroy_pubrec(mqtt_pkt_pubrec);
+
+    printf("destroy_pubrec_encoded\n");
+    return 0;
+}
+
+int test_mqtt_pubrec_packet_decode(uint8_t * buf, int len)
+{
+    MQTT_PKT_PUBREC* mqtt_pkt_pubrec_decoded = mqtt_pkt_pubrec_decode(buf, len);
+    if (mqtt_pkt_pubrec_decoded == NULL)
+    {
+        printf("test_mqtt_pubrec_packet_decode: Failed\n");
+        return -1;
+    }
+
+    if (mqtt_pkt_pubrec_decoded->get_pkt_id(mqtt_pkt_pubrec_decoded) == 3)
+    {
+        printf("test_mqtt_pubrec_packet_decode: Passed\n");
+    }
+    else
+    {
+        printf("test_mqtt_pubrec_packet_decode: Failed\n");
+    }
+
+    destroy_pubrec(mqtt_pkt_pubrec_decoded);
+    printf("destroy_pubrec_decoded\n");
+    return 0;
+
+}
+
+int test_mqtt_pubrel_packet_encode(uint8_t *encoded_buf, int* buf_len) {
+    int packet_id = 3;
+    // Create a test packet with specific values
+    MQTT_PKT_PUBREL *mqtt_pkt_pubrel = mqtt_pkt_pubrel_create();
+    mqtt_pkt_pubrel_init(mqtt_pkt_pubrel, packet_id);
+
+    // Encode the packet
+    uint8_t buf[MQTT_PKT_MAX_SIZE] = {0};
+    int pubrel_len = mqtt_pkt_pubrel->encode(mqtt_pkt_pubrel, buf);
+
+    // for (int i = 0; i < pubrel_len; i++)
+    // {
+    //     printf("buf[%d] = 0x%x ", i, buf[i]);
+    // }
+    // printf("\n");
+
+    uint8_t expected_buf[1024] = {0};
+
+    // Fixed header
+    uint8_t *p = expected_buf;
+
+    // Fixed header
+    int len = 0;
+    int expected_len = 0;
+
+    p[0] = 0x62;
+    p[1] = 0;
+
+    expected_len += 2;
+    p+=2;
+    int rem_len = 0;
+
+    int var_header_len = encode_int(p, packet_id);
+    rem_len += var_header_len;
+
+    int rem_len_len = encode_rem_len(rem_len, expected_buf+1);
+    expected_len = 1 + rem_len_len + var_header_len;
+
+    // for (int i = 0; i < expected_len; i++)
+    // {
+    //     printf("expected_buf[%d] = 0x%x ", i, expected_buf[i]);
+    // }
+    // printf("\n");
+    // printf("pubrel_len = %d\n", pubrel_len);
+    // printf("expected_len = %d\n", expected_len);
+
+    // Compare the encoded packet with the expected packet
+    if (pubrel_len == expected_len && memcmp(buf, expected_buf, pubrel_len) == 0) {
+        printf("test_mqtt_pubrel_packet_encode: Passed\n");
+        *buf_len = pubrel_len;
+        memcpy(encoded_buf, buf, pubrel_len);
+    } else {
+        printf("test_mqtt_pubrel_packet_encode: Failed\n");
+    }
+
+    // Free the test packet
+    destroy_pubrel(mqtt_pkt_pubrel);
+
+    printf("destroy_pubrel_encoded\n");
+    return 0;
+}
+
+int test_mqtt_pubrel_packet_decode(uint8_t * buf, int len)
+{
+    MQTT_PKT_PUBREL* mqtt_pkt_pubrel_decoded = mqtt_pkt_pubrel_decode(buf, len);
+    if (mqtt_pkt_pubrel_decoded == NULL)
+    {
+        printf("test_mqtt_pubrel_packet_decode: Failed\n");
+        return -1;
+    }
+
+    if (mqtt_pkt_pubrel_decoded->get_pkt_id(mqtt_pkt_pubrel_decoded) == 3)
+    {
+        printf("test_mqtt_pubrel_packet_decode: Passed\n");
+    }
+    else
+    {
+        printf("test_mqtt_pubrel_packet_decode: Failed\n");
+    }
+
+    destroy_pubrel(mqtt_pkt_pubrel_decoded);
+    printf("destroy_pubrel_decoded\n");
+    return 0;
+
+}
+
+int test_mqtt_pubcomp_packet_encode(uint8_t *encoded_buf, int* buf_len) {
+    int packet_id = 3;
+    // Create a test packet with specific values
+    MQTT_PKT_PUBCOMP *mqtt_pkt_pubcomp = mqtt_pkt_pubcomp_create();
+    mqtt_pkt_pubcomp_init(mqtt_pkt_pubcomp, packet_id);
+
+    // Encode the packet
+    uint8_t buf[MQTT_PKT_MAX_SIZE] = {0};
+    int pubcomp_len = mqtt_pkt_pubcomp->encode(mqtt_pkt_pubcomp, buf);
+
+    // for (int i = 0; i < pubcomp_len; i++)
+    // {
+    //     printf("buf[%d] = 0x%x ", i, buf[i]);
+    // }
+    // printf("\n");
+
+    uint8_t expected_buf[1024] = {0};
+
+    // Fixed header
+    uint8_t *p = expected_buf;
+
+    // Fixed header
+    int len = 0;
+    int expected_len = 0;
+
+    p[0] = 0x70;
+    p[1] = 0;
+
+    expected_len += 2;
+    p+=2;
+    int rem_len = 0;
+
+    int var_header_len = encode_int(p, packet_id);
+    rem_len += var_header_len;
+
+    int rem_len_len = encode_rem_len(rem_len, expected_buf+1);
+    expected_len = 1 + rem_len_len + var_header_len;
+
+    // for (int i = 0; i < expected_len; i++)
+    // {
+    //     printf("expected_buf[%d] = 0x%x ", i, expected_buf[i]);
+    // }
+    // printf("\n");
+    // printf("pubcomp_len = %d\n", pubcomp_len);
+    // printf("expected_len = %d\n", expected_len);
+
+    // Compare the encoded packet with the expected packet
+    if (pubcomp_len == expected_len && memcmp(buf, expected_buf, pubcomp_len) == 0) {
+        printf("test_mqtt_pubcomp_packet_encode: Passed\n");
+        *buf_len = pubcomp_len;
+        memcpy(encoded_buf, buf, pubcomp_len);
+    } else {
+        printf("test_mqtt_pubcomp_packet_encode: Failed\n");
+    }
+
+    // Free the test packet
+    destroy_pubcomp(mqtt_pkt_pubcomp);
+
+    printf("destroy_pubcomp_encoded\n");
+    return 0;
+}
+
+int test_mqtt_pubcomp_packet_decode(uint8_t * buf, int len)
+{
+    MQTT_PKT_PUBCOMP* mqtt_pkt_pubcomp_decoded = mqtt_pkt_pubcomp_decode(buf, len);
+    if (mqtt_pkt_pubcomp_decoded == NULL)
+    {
+        printf("test_mqtt_pubcomp_packet_decode: Failed\n");
+        return -1;
+    }
+
+    if (mqtt_pkt_pubcomp_decoded->get_pkt_id(mqtt_pkt_pubcomp_decoded) == 3)
+    {
+        printf("test_mqtt_pubcomp_packet_decode: Passed\n");
+    }
+    else
+    {
+        printf("test_mqtt_pubcomp_packet_decode: Failed\n");
+    }
+
+    destroy_pubcomp(mqtt_pkt_pubcomp_decoded);
+    printf("destroy_pubcomp_decoded\n");
+    return 0;
+
+}
+
 int main() {
     uint8_t encoded_buf[1024] = {0};
     int buf_len = 0;
@@ -363,6 +710,18 @@ int main() {
     memset(encoded_buf, 0, 1024);
     test_mqtt_publish_packet_encode(encoded_buf, &buf_len);
     test_mqtt_publish_packet_decode(encoded_buf, buf_len);
+    memset(encoded_buf, 0, 1024);
+    test_mqtt_puback_packet_encode(encoded_buf, &buf_len);
+    test_mqtt_puback_packet_decode(encoded_buf, buf_len);
+    memset(encoded_buf, 0, 1024);
+    test_mqtt_pubrec_packet_encode(encoded_buf, &buf_len);
+    test_mqtt_pubrec_packet_decode(encoded_buf, buf_len);
+    memset(encoded_buf, 0, 1024);
+    test_mqtt_pubrel_packet_encode(encoded_buf, &buf_len);
+    test_mqtt_pubrel_packet_decode(encoded_buf, buf_len);
+    memset(encoded_buf, 0, 1024);
+    test_mqtt_pubcomp_packet_encode(encoded_buf, &buf_len);
+    test_mqtt_pubcomp_packet_decode(encoded_buf, buf_len);
 
     return 0;
 }
