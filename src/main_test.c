@@ -11,7 +11,7 @@
 #include "mqtt_pubrec.h"
 #include "mqtt_pubrel.h"
 #include "mqtt_pubcomp.h"
-
+#include "mqtt_subscribe.h"
 
 void test_mqtt_connect_packet_encode(uint8_t *encoded_buf, int* buf_len) {
     // Create a test packet with specific values
@@ -699,6 +699,194 @@ int test_mqtt_pubcomp_packet_decode(uint8_t * buf, int len)
 
 }
 
+
+int test_mqtt_subscribe_packet_encode(uint8_t *encoded_buf, int* buf_len) {
+    int packet_id = 8;
+    // Create a test packet with specific values
+    MQTT_PKT_SUBSCRIBE *mqtt_pkt_subscribe = mqtt_pkt_subscribe_create(packet_id);
+    TOPIC_QOS init_topic_qos = {
+        .topic = "test_topic",
+        .qos = 1
+    };
+
+    mqtt_pkt_subscribe_init(mqtt_pkt_subscribe, &init_topic_qos);
+
+    // Encode the packet
+    uint8_t buf[MQTT_PKT_MAX_SIZE] = {0};
+    int subscribe_len = mqtt_pkt_subscribe->encode(mqtt_pkt_subscribe, buf);
+
+    // for (int i = 0; i < subscribe_len; i++)
+    // {
+    //     printf("buf[%d] = 0x%x ", i, buf[i]);
+    // }
+    // printf("\n");
+
+    uint8_t expected_buf[1024] = {0};
+    uint8_t *var_header = malloc(2);
+
+
+    // Fixed header
+    uint8_t *p = expected_buf;
+
+    //var header
+    int var_header_len = encode_int(p, packet_id);
+    memcpy(var_header, p, var_header_len);
+    p = expected_buf;
+
+    //payload
+    int topic_cnt = 1;
+    int payload_len = 0;
+    int topic_len = encode_string(p, init_topic_qos.topic);
+    p+=topic_len;
+    p[0] = init_topic_qos.qos;
+    payload_len = topic_len + 1;
+    p+=1;
+    uint8_t *payload = malloc(payload_len);
+    memcpy(payload, expected_buf, payload_len);
+    memset(expected_buf, 0, sizeof(expected_buf));
+
+    // Fixed header
+    p = expected_buf;
+    p[0] = 0x82;
+    p += 1;
+    int rem_len = var_header_len + payload_len;
+
+    int rem_len_len = encode_rem_len(rem_len, p);
+    p += rem_len_len;
+    memcpy(p, var_header, var_header_len);
+    p += var_header_len;
+    memcpy(p, payload, payload_len);
+    int expected_len = 1 + rem_len_len + var_header_len + payload_len;
+
+    // for (int i = 0; i < expected_len; i++)
+    // {
+    //     printf("buf_[%d] = 0x%x ", i, expected_buf[i]);
+    // }
+    // printf("\n");
+
+    free(var_header);
+    free(payload);
+    payload = NULL;
+    var_header = NULL;
+
+    // Compare the encoded packet with the expected packet
+    if (subscribe_len == expected_len && memcmp(buf, expected_buf, subscribe_len) == 0) {
+        printf("test_mqtt_subscribe_packet_encode: Passed\n");
+        *buf_len = subscribe_len;
+        // memcpy(encoded_buf, buf, subscribe_len);
+    } else {
+        printf("test_mqtt_subscribe_packet_encode: Failed\n");
+    }
+
+    printf("add begin\n");
+
+    //add test
+    TOPIC_QOS topic2 = {
+        .topic = "test_topic2",
+        .qos = 2
+    };
+
+    mqtt_pkt_subscribe->add_topic(mqtt_pkt_subscribe, topic2.topic, topic2.qos);
+
+    // Encode the packet
+    memset(buf, 0, MQTT_PKT_MAX_SIZE);
+    subscribe_len = mqtt_pkt_subscribe->encode(mqtt_pkt_subscribe, buf);
+
+    // for (int i = 0; i < subscribe_len; i++)
+    // {
+    //     printf("buf[%d] = 0x%x ", i, buf[i]);
+    // }
+    // printf("\n");
+
+    memset(expected_buf, 0, sizeof(expected_buf));
+    p = expected_buf;
+
+    //var header
+    var_header_len = encode_int(p, packet_id);
+    uint8_t *var_header2 = malloc(2);
+    memcpy(var_header2, p, var_header_len);
+    p = expected_buf;
+
+    
+    //payload
+    topic_cnt = 2;
+    payload_len = 0;
+    topic_len = encode_string(p, init_topic_qos.topic);
+    p+=topic_len;
+    p[0] = init_topic_qos.qos;
+    payload_len += topic_len + 1;
+    p+=1;
+    topic_len = encode_string(p, topic2.topic);
+    p+=topic_len;
+    p[0] = topic2.qos;
+    payload_len += topic_len + 1;
+    p+=1;
+
+    uint8_t* payload2 = malloc(payload_len);
+    memcpy(payload2, expected_buf, payload_len);
+
+    // Fixed header
+    p = expected_buf;
+    p[0] = 0x82;
+    p += 1;
+    rem_len = var_header_len + payload_len;
+
+    rem_len_len = encode_rem_len(rem_len, p);
+    p += rem_len_len;
+    memcpy(p, var_header2, var_header_len);
+    p += var_header_len;
+    memcpy(p, payload2, payload_len);
+    expected_len = 1 + rem_len_len + var_header_len + payload_len;
+
+    free(var_header2);
+    free(payload2);
+
+    // for (int i = 0; i < expected_len; i++)
+    // {
+    //     printf("buf[%d] = 0x%x ", i, expected_buf[i]);
+    // }
+    // printf("\n");
+
+    // Compare the encoded packet with the expected packet
+    if (subscribe_len == expected_len && memcmp(buf, expected_buf, subscribe_len) == 0) {
+        printf("test_mqtt_subscribe_packet_encode: Passed\n");
+        *buf_len = subscribe_len;
+        printf("topic1: %s %d\n", init_topic_qos.topic, init_topic_qos.qos);
+        printf("topic2: %s %d\n", topic2.topic, topic2.qos);
+        memcpy(encoded_buf, buf, subscribe_len);
+    } else {
+        printf("test_mqtt_subscribe_packet_encode: Failed\n");
+    }
+
+    // Free the test packet
+    destroy_subscribe(mqtt_pkt_subscribe);
+
+    printf("destroy_subscribe_encoded\n");
+    return 0;
+}
+
+int test_mqtt_subscribe_packet_decode(uint8_t * buf, int len)
+{
+    MQTT_PKT_SUBSCRIBE* mqtt_pkt_subscribe_decoded = mqtt_pkt_subscribe_decode(buf, len);
+    if (mqtt_pkt_subscribe_decoded == NULL)
+    {
+        printf("test_mqtt_subscribe_packet_decode: Failed\n");
+        return -1;
+    }
+
+    TOPIC_QOS *topic = mqtt_pkt_subscribe_decoded->get_topic(mqtt_pkt_subscribe_decoded);
+    while (topic != NULL)
+    {
+        printf("topic: %s %d\n", topic->topic, topic->qos);
+        topic = topic->next;
+    }
+
+    destroy_subscribe(mqtt_pkt_subscribe_decoded);
+    printf("destroy_subscribe_decoded\n");
+    return 0;
+
+}
+
 int main() {
     uint8_t encoded_buf[1024] = {0};
     int buf_len = 0;
@@ -722,6 +910,9 @@ int main() {
     memset(encoded_buf, 0, 1024);
     test_mqtt_pubcomp_packet_encode(encoded_buf, &buf_len);
     test_mqtt_pubcomp_packet_decode(encoded_buf, buf_len);
+    memset(encoded_buf, 0, 1024);
+    test_mqtt_subscribe_packet_encode(encoded_buf, &buf_len);
+    test_mqtt_subscribe_packet_decode(encoded_buf, buf_len);
 
     return 0;
 }
